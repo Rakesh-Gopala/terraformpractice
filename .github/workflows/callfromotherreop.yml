@@ -1,0 +1,22 @@
+name: calling custom datalake
+
+on: 
+    workflow_dispatch:
+
+jobs: 
+    datalake_container:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: checkout code
+              uses: actions/checkout@v2
+
+            - name: create data lake container and acquire lease on it
+              uses: Rakesh-Gopala/statefile/.github/actions/datalakecontainer
+              with:
+                datalake_name: bdaze1icommdl14
+                appshortcode: glsm
+                environment: dev
+                functional_area: commercial
+                data_product_name: service management
+                AZURECREDENTIALS: ${{ secrets.AZURECREDENTIALS}}
