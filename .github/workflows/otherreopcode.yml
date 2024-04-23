@@ -1,4 +1,4 @@
-name: Copy and Create Directories
+name: Trigger Statefile Workflow
 
 on:
   workflow_dispatch:
@@ -13,89 +13,13 @@ on:
         options: [commercial, dataops, it, global services, m&q, r&d]
 
 jobs:
-  copy_and_create_directories:
+  trigger_statefile_workflow:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    - name: Checkout other repository
-      uses: actions/checkout@v4
-      with:
-        repository: Rakesh-Gopala/statefile
-        token: ${{ secrets.PAT_STATEFILE }} 
-        path: main
-      
-    - name: Determine abbreviation for functionalarea
-      id: determine_abbreviation
-      run: |
-        get_naming_convention() {
-        case "${{ github.event.inputs.functionalarea }}" in
-          commercial) echo "COM";;
-          dataops) echo "EDNA";;
-          "global services") echo "GLO";;
-          it) echo "IT";;
-          "m&q") echo "MNQ";;
-          "r&d") echo "RND";;
-        esac
-        }
-        naming_convention=$(get_naming_convention  "${{ github.event.inputs.functionalarea }}")
-        echo "naming_convention=$naming_convention" >> $GITHUB_ENV
-        echo "$naming_convention"
-      shell: bash
-
-    - name: Configure Git user identity
-      run: |
-        git config user.email "actions@github.com"
-        git config user.name "GitHub Actions"
-      
-    - name: Create new directory
-      run: mkdir "${{ env.naming_convention }}-$(echo "${{ github.event.inputs.appcode }}" | tr '[:lower:]' '[:upper:]')"
-      #run: mkdir "${{ env.naming_convention }}-${{ github.event.inputs.appcode }}"
-      
-    - name: Copy contents to new directory
-      run: cp -r core-sourcecode/* "${{ env.naming_convention }}-$(echo "${{ github.event.inputs.appcode }}" | tr '[:lower:]' '[:upper:]')"
-      #run: cp -r core-sourcecode/* "${{ env.naming_convention^^ }}-${{ github.event.inputs.appcode^^ }}" 
-      
-    - name: Modify backend.tf files
-      run: |
-        find "${{ env.naming_convention }}-$(echo "${{ github.event.inputs.appcode }}" | tr '[:lower:]' '[:upper:]')/infra/envs" -name "backend.tf" -print0 | while IFS= read -r -d '' file; do
-          echo "Processing file: $file"
-          # Get the directory name using dirname
-          dir=$(dirname "$file")
-          # Use basename to get the name of the environment
-          environment=$(basename "$dir")
-          echo "Environment: $environment"
-          # Print content of the file before modification
-          echo "Content of $file before modification:"
-          cat "$file"
-          # Replace old_content with new content and environment name
-          sed -i "/^ *name *=.*/{s/.*/      name = \"$(echo "${{ env.naming_convention }}-${{ github.event.inputs.appcode }}-$environment" | tr '[:upper:]' '[:lower:]')\"/}" "$file"
-          echo "Content of $file after modification:"
-          cat "$file"
-        done
-      shell: bash
-
-    - name: Add changes
-      run: git add .
-      
-    # - name: Commit changes
-    #   run: git commit -m "Copying and creating directories"
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.PAT_TOKEN_GITHUB }}
-        
-    # - name: Push changes
-    #   run: git push
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.PAT_TOKEN_GITHUB }}
-
-    - name: Commit changes
-      run: git commit -m "Copying and creating directories"
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT_STATEFILE }}
-        
-    - name: Push changes
-      run: git push
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT_STATEFILE }}
+      - name: Trigger Statefile Workflow
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.PAT_STATEFILE }}" \
+            -H "Accept: application/vnd.github.everest-preview+json" \
+            -d '{"event_type": "run-workflow", "client_payload": {"appcode": "${{ github.event.inputs.appcode }}", "functionalarea": "${{ github.event.inputs.functionalarea }}"}}' \
+            https://api.github.com/repos/Rakesh-Gopala/statefile/dispatches
